@@ -39,6 +39,12 @@ def write_entry(path: str = OUTPUT_PATH) -> str:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="") as fh:
         fh.write(ENTRY)
+    # Read the file back and confirm the bytes on disk are exactly the
+    # entry: a silent short write or newline translation must not pass.
+    with open(path, "rb") as fh:
+        written = fh.read()
+    if written != ENTRY.encode("utf-8"):
+        raise ValueError("read-back of written entry differs from ENTRY")
     return ENTRY
 
 
@@ -78,6 +84,19 @@ def self_test() -> int:
             print(f"self-test: rejection case '{name}' correctly rejected")
         else:
             failures.append(f"rejection case '{name}' was NOT rejected")
+
+    # Boundary acceptance: the gate's edges must pass validation.
+    boundary_cases = {
+        "1-char": "x",
+        "280-char": "y" * 280,
+    }
+    for name, good in boundary_cases.items():
+        try:
+            validate(good)
+        except ValueError as exc:
+            failures.append(f"boundary case '{name}' wrongly rejected: {exc}")
+        else:
+            print(f"self-test: boundary case '{name}' correctly accepted")
 
     if failures:
         for failure in failures:
